@@ -24,6 +24,7 @@ If a buffer contains more than 100 lines, it will be split into multiple <= 100 
         require("backseat").setup({
             -- Alternatively, set the env var $OPENAI_API_KEY by putting "export OPENAI_API_KEY=sk-xxxxx" in your ~/.bashrc
             openai_api_key = 'sk-xxxxxxxxxxxxxx', -- Get yours from platform.openai.com/account/api-keys
+            openai_api_endpoint = 'https://api.openai.com' -- Optional, defaults to 'https://api.openai.com'
             openai_model_id = 'gpt-3.5-turbo', --gpt-4 (If you do not have access to a model, it says "The model does not exist")
             -- language = 'english', -- Such as 'japanese', 'french', 'pirate', 'LOLCAT'
             -- split_threshold = 100,
@@ -43,6 +44,7 @@ If a buffer contains more than 100 lines, it will be split into multiple <= 100 
 | Setup Table Name | Default | Purpose |
 | --- | --- | -- |
 | `openai_api_key` | `nil` | Your OpenAI API key, needed to use their language models
+| `openai_api_endpoint` | `'https://api.openai.com'` | The OpenAI API endpoint to use
 | `openai_model_id` | `'gpt-3.5-turbo'` | The model's identifier, such as gpt-3.5-turbo and gpt-4
 | `language` | `'english'` | The language of suggestions, such as 'japanese', 'french' or made up ones like 'pirate', 'LOLCAT'
 | `split_threshold` | `100` | The max number of lines of code sent per request (lower uses more tokens but increases number of suggestions)

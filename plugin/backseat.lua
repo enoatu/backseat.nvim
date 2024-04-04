@@ -30,6 +30,18 @@ local function get_api_key()
     return api_key
 end
 
+local function get_api_endpoint()
+    local api_endpoint = vim.g.backseat_openai_api_endpoint
+    if api_endpoint == nil then
+        local endpoint = os.getenv("OPENAI_API_ENDPOINT")
+        if endpoint ~= nil then
+            return endpoint
+        end
+        return "https://api.openai.com/v1/chat/completions"
+    end
+    return api_endpoint
+end
+
 local function get_model_id()
     local model = vim.g.backseat_openai_model_id
     if model == nil then
@@ -124,14 +136,14 @@ local function gpt_request(dataJSON, callback, callbackTable)
     if isWindows ~= true then
         -- Linux
         curlRequest = string.format(
-            "curl -s https://api.openai.com/v1/chat/completions -H \"Content-Type: application/json\" -H \"Authorization: Bearer " ..
+            "curl -s " .. get_api_endpoint() .. "/v1/chat/completions -H \"Content-Type: application/json\" -H \"Authorization: Bearer " ..
             api_key ..
             "\" --data-binary \"@" .. tempFilePathEscaped .. "\"; rm " .. tempFilePathEscaped .. " > /dev/null 2>&1"
         )
     else
         -- Windows
         curlRequest = string.format(
-            "curl -s https://api.openai.com/v1/chat/completions -H \"Content-Type: application/json\" -H \"Authorization: Bearer " ..
+            "curl -s " .. get_api_endpoint() .. "/v1/chat/completions -H \"Content-Type: application/json\" -H \"Authorization: Bearer " ..
             api_key ..
             "\" --data-binary \"@" .. tempFilePathEscaped .. "\" & del " .. tempFilePathEscaped .. " > nul 2>&1"
         )
@@ -193,12 +205,12 @@ local function parse_response(response, partNumberString, bufnr)
     if #suggestions == 0 then
         print("AI Says: " ..
         response.choices[1].message.content ..
-        " - Used " .. response.usage.total_tokens .. " tokens from model " .. get_model_id() .. partNumberString)
+        get_model_id() .. partNumberString)
     else
         print("AI made " ..
         #suggestions ..
         " suggestion(s) using " ..
-        response.usage.total_tokens .. " tokens from model " .. get_model_id() .. partNumberString)
+        get_model_id() .. partNumberString)
     end
 
     -- Act on each suggestion

@@ -2,6 +2,7 @@ local M = {}
 
 local default_opts = {
     openai_api_key = nil,
+    openai_api_endpoint = 'https://api.openai.com',
     openai_model_id = 'gpt-3.5-turbo',
     language = 'english',
     additional_instruction = nil,
@@ -19,6 +20,10 @@ function M.setup(opts)
     -- Set the module's options
     -- if vim.g.backseat_openai_api_key == nil then
     vim.g.backseat_openai_api_key = opts.openai_api_key
+    -- end
+
+    -- if vim.g.backseat_openai_api_endpoint == nil then
+    vim.g.backseat_openai_api_endpoint = opts.openai_api_endpoint
     -- end
 
     -- if vim.g.backseat_openai_model_id == nil then
