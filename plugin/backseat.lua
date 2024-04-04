@@ -5,7 +5,8 @@ end
 vim.g.loaded_backseat = true
 
 require("backseat").setup()
-local fewshot = require("backseat.fewshot") -- The training messages
+--local fewshot = require("backseat.fewshot") -- The training messages
+local fewshot = require("backseat.bugfinder") -- The training messages
 
 -- Create namespace for backseat suggestions
 local backseatNamespace = vim.api.nvim_create_namespace("backseat")
@@ -78,20 +79,17 @@ end
 
 local function split_long_text(text)
     local lines = vim.split(text, "\n")
-    -- Get the width of the screen
     local screenWidth = vim.api.nvim_win_get_width(0) - 20
-    -- Split any suggestionLines that are too long
     local newLines = {}
     for _, line in ipairs(lines) do
-        if string.len(line) >= screenWidth then
-            local splitLines = vim.split(line, " ")
+        if vim.fn.strdisplaywidth(line) > screenWidth then
             local currentLine = ""
-            for _, word in ipairs(splitLines) do
-                if string.len(currentLine) + string.len(word) > screenWidth then
+            for _, word in ipairs(vim.split(line, "。")) do
+                if vim.fn.strdisplaywidth(currentLine .. " " .. word) > screenWidth then
                     table.insert(newLines, currentLine)
                     currentLine = word
                 else
-                    currentLine = currentLine .. " " .. word
+                    currentLine = currentLine == "" and word or currentLine .. " " .. word
                 end
             end
             table.insert(newLines, currentLine)
