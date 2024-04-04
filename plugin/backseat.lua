@@ -200,16 +200,16 @@ local function parse_response(response, partNumberString, bufnr)
         end
     end
 
-    if #suggestions == 0 then
-        print("AI Says: " ..
-        response.choices[1].message.content ..
-        get_model_id() .. partNumberString)
-    else
-        print("AI made " ..
-        #suggestions ..
-        " suggestion(s) using " ..
-        get_model_id() .. partNumberString)
-    end
+    -- if #suggestions == 0 then
+    --     print("AI Says: " ..
+    --     response.choices[1].message.content ..
+    --     get_model_id() .. partNumberString)
+    -- else
+    --     print("AI made " ..
+    --     #suggestions ..
+    --     " suggestion(s) using " ..
+    --     get_model_id() .. partNumberString)
+    -- end
 
     -- Act on each suggestion
     for _, suggestion in ipairs(suggestions) do
@@ -244,6 +244,11 @@ local function parse_response(response, partNumberString, bufnr)
             pair[1] = line
             pair[2] = get_highlight_group()
             pairs[i] = { pair }
+        end
+
+        -- check buffer exists
+        if not vim.api.nvim_buf_is_valid(bufnr) then
+            return
         end
 
         -- Add suggestion virtual text and a lightbulb icon to the sign column
@@ -283,14 +288,14 @@ local function backseat_send_from_request_queue(callbackTable)
     -- Get bufname without the path
     local bufname = vim.fn.fnamemodify(vim.fn.bufname(callbackTable.bufnr), ":t")
 
-    if callbackTable.requestIndex == 0 then
-        if callbackTable.startingRequestCount == 1 then
-            print("Sending " .. bufname .. " (" .. callbackTable.lineCount .. " lines) and waiting for response...")
-        else
-            print("Sending " ..
-            bufname .. " (split into " .. callbackTable.startingRequestCount .. " requests) and waiting for response...")
-        end
-    end
+    -- if callbackTable.requestIndex == 0 then
+    --     if callbackTable.startingRequestCount == 1 then
+    --         print("Sending " .. bufname .. " (" .. callbackTable.lineCount .. " lines) and waiting for response...")
+    --     else
+    --         print("Sending " ..
+    --         bufname .. " (split into " .. callbackTable.startingRequestCount .. " requests) and waiting for response...")
+    --     end
+    -- end
 
     -- Get the first request from the queue
     local requestJSON = table.remove(callbackTable.requests, 1)
@@ -430,3 +435,18 @@ vim.api.nvim_create_user_command("BackseatClearLine", function()
     local lineNum = vim.api.nvim_win_get_cursor(0)[1]
     vim.api.nvim_buf_clear_namespace(bufnr, backseatNamespace, lineNum - 1, lineNum)
 end, {})
+
+function setup_timer()
+    -- 初回実行
+    vim.cmd("BackseatClear")
+    vim.cmd("Backseat")
+    -- 3分ごとに実行するためのタイマーを設定
+    vim.fn.timer_start(180000, function()
+        -- タイマーがトリガーされたときに実行されるコード
+        vim.cmd("BackseatClear")
+        vim.cmd("Backseat")
+    end, {repeating = true})
+end
+
+-- buffer 切り替え時、保存時、ファイル読み込み時にタイマーを設定
+vim.cmd("autocmd BufEnter,BufWritePost,FileReadPost * lua setup_timer()")
