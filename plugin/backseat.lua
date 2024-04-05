@@ -5,6 +5,7 @@ end
 vim.g.loaded_backseat = true
 
 require("backseat").setup()
+-- TODO: switch setting
 --local fewshot = require("backseat.fewshot") -- The training messages
 local fewshot = require("backseat.bugfinder") -- The training messages
 
@@ -67,6 +68,10 @@ end
 
 local function get_split_threshold()
     return vim.g.backseat_split_threshold
+end
+
+local function get_analyze_range_lines()
+    return vim.g.backseat_analyze_range_lines
 end
 
 local function get_highlight_icon()
@@ -211,6 +216,8 @@ local function parse_response(response, partNumberString, bufnr)
     --     get_model_id() .. partNumberString)
     -- end
 
+    -- Clear all existing backseat virtual text and signs
+
     -- Act on each suggestion
     for _, suggestion in ipairs(suggestions) do
         -- Get the line number
@@ -250,6 +257,9 @@ local function parse_response(response, partNumberString, bufnr)
         if not vim.api.nvim_buf_is_valid(bufnr) then
             return
         end
+
+        -- すでに同じ行+2-2にvirtual textがある場合は既存のものを削除
+        vim.api.nvim_buf_clear_namespace(bufnr, backseatNamespace, lineNum - 3, lineNum + 2)
 
         -- Add suggestion virtual text and a lightbulb icon to the sign column
         vim.api.nvim_buf_set_extmark(bufnr, backseatNamespace, lineNum - 1, 0, {
@@ -327,7 +337,8 @@ vim.api.nvim_create_user_command("Backseat", function()
     local splitThreshold = get_split_threshold()
     local bufnr = vim.api.nvim_get_current_buf()
     local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-    local numRequests = math.ceil(#lines / splitThreshold)
+    local execLineNum = 200
+    local numRequests = math.ceil(execLineNum / splitThreshold)
     local model = get_model_id()
 
     local requestTable = {
@@ -336,10 +347,20 @@ vim.api.nvim_create_user_command("Backseat", function()
     }
 
     local requests = {}
+    local startPos = 0
+    -- 現在の表示中の範囲だけ取得するためにstartPosを設定
+    if vim.api.nvim_buf_line_count(bufnr) > execLineNum then
+        local winHeight = vim.api.nvim_win_get_height(0)  -- 現在のウィンドウの高さを取得
+        local cursorLine = vim.api.nvim_win_get_cursor(0)[1]  -- カーソルの行番号を取得
+        local middleLine = cursorLine + math.floor(winHeight / 2)  -- ウィンドウの中央行の行番号を計算
+        startPos = middleLine - execLineNum / 2
+        if startPos < 1 then
+            startPos = 1
+        end
+    end
     for i = 1, numRequests do
-        local startingLineNumber = (i - 1) * splitThreshold + 1
+        local startingLineNumber = startPos + (i - 1) * splitThreshold + 1
         local text = prepare_code_snippet(bufnr, startingLineNumber, startingLineNumber + splitThreshold - 1)
-        -- print(text)
 
         if get_additional_instruction() ~= "" then
             text = text .. "\n" .. get_additional_instruction()
@@ -368,7 +389,7 @@ vim.api.nvim_create_user_command("Backseat", function()
         startingRequestCount = numRequests,
         requestIndex = 0,
         bufnr = bufnr,
-        lineCount = #lines,
+        lineCount = execLineNum,
     })
     -- require("backseat.main"):run()
 end, {})
@@ -436,17 +457,79 @@ vim.api.nvim_create_user_command("BackseatClearLine", function()
     vim.api.nvim_buf_clear_namespace(bufnr, backseatNamespace, lineNum - 1, lineNum)
 end, {})
 
-function setup_timer()
-    -- 初回実行
-    vim.cmd("BackseatClear")
-    vim.cmd("Backseat")
-    -- 3分ごとに実行するためのタイマーを設定
-    vim.fn.timer_start(180000, function()
-        -- タイマーがトリガーされたときに実行されるコード
-        vim.cmd("BackseatClear")
-        vim.cmd("Backseat")
-    end, {repeating = true})
-end
+--
+-- local last_cursor_position = {0, 0}
+-- local last_cursor_time = vim.loop.now()
+--
+-- -- カーソルの位置を監視するautocmdを設定
+-- vim.api.nvim_exec([[
+--     autocmd CursorMoved * call luaeval("update_cursor_position()")
+-- ]], false)
+--
+-- -- カーソル位置が更新されたときに呼び出される関数
+-- function update_cursor_position()
+--     local current_time = vim.loop.now()
+--     local current_cursor_position = vim.api.nvim_win_get_cursor(0)
+--     -- 前回のカーソル位置と現在のカーソル位置が同じでない場合
+--     if current_cursor_position[1] ~= last_cursor_position[1] or current_cursor_position[2] ~= last_cursor_position[2] then
+--         local time_difference = (current_time - last_cursor_time) / 1000 -- ミリ秒を秒に変換
+--         -- print("カーソルが移動してからの経過時間（秒）: " .. time_difference)
+--         last_cursor_position = current_cursor_position
+--         last_cursor_time = current_time
+--     end
+-- end
+--
+-- -- 5秒以内にカーソルが移動しているかどうかを返す
+-- function is_active()
+--     local border_time = 30
+--     local current_time = vim.loop.now()
+--     local time_difference = (current_time - last_cursor_time) / 1000
+--     return time_difference < border_time
+-- end
+--
+-- function setup_timer()
+--     -- 初回実行(0秒後に実行)
+--     vim.fn.timer_start(0, function()
+--     --    vim.cmd("Backseat")
+--     end)
+--     -- 3分ごとに実行するためのタイマーを設定
+--     vim.fn.timer_start(20000, function()
+--         -- タイマーがトリガーされたときに実行されるコード
+--         -- ユーザーがアクティブかどうかを確認
+--         if not is_active() then
+--             print("ユーザーがアクティブではありません")
+--             return
+--         end
+--     --    vim.cmd("Backseat")
+--     end, {["repeat"] = 100})
+-- end
+-- -- buffer 切り替え時、保存時、ファイル読み込み時にタイマーを設定
+-- vim.cmd("autocmd BufEnter,BufWritePost,FileReadPost * lua setup_timer()")
 
--- buffer 切り替え時、保存時、ファイル読み込み時にタイマーを設定
-vim.cmd("autocmd BufEnter,BufWritePost,FileReadPost * lua setup_timer()")
+-- スクロール時にタイマーを設定
+local timer_id = nil
+-- スクロール後に実行される関数
+local function on_scroll_stop()
+    -- print("1秒経過したので関数を実行します")
+    vim.cmd("Backseat")
+end
+-- タイマーをリセットする関数
+function reset_timer()
+    -- すでにタイマーが動作している場合はキャンセルする
+    if timer_id ~= nil then
+        vim.fn.timer_stop(timer_id)
+    end
+    -- 1秒後に on_scroll_stop 関数を実行するタイマーをセットする
+    timer_id = vim.fn.timer_start(1000, function()
+        on_scroll_stop()
+        timer_id = nil
+    end)
+end
+-- スクロールが停止したときに呼び出されるautocmd
+vim.cmd([[
+augroup ScrollStop
+  autocmd!
+  autocmd BufEnter,WinScrolled * lua reset_timer()
+augroup END
+]])
+
